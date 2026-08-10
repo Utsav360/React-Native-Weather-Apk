@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: a7
+
+jobs:
+  validate:
+    name: Validate Expo app
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.13.x
+          cache: npm
+          cache-dependency-path: a7/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check Expo dependency compatibility
+        run: npx expo install --check
+
+      - name: Reject critical dependency vulnerabilities
+        run: npm audit --audit-level=critical
+
+      - name: Export web bundle
+        run: npx expo export --platform web
+        env:
+          CI: "true"
+          EXPO_NO_TELEMETRY: "1"
